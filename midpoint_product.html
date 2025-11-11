@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hodnocení Produktu | Dynamický Kalkulátor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #e8eaf6; }
+        .selected {
+            @apply ring-4 ring-offset-2 ring-indigo-500 !important;
+            background-color: #4f46e5 !important;
+            color: white !important;
+        }
+        /* Style for buttons to ensure consistent height across categories */
+        .criterion-btn {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            height: 100%;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8 min-h-screen flex flex-col items-center">
+
+    <div class="max-w-6xl w-full bg-white shadow-2xl rounded-xl p-6 md:p-10">
+        <h1 class="text-3xl font-extrabold text-indigo-700 mb-4 border-b-2 border-indigo-300 pb-2">
+            2. Produkt: Střední a Finální Hodnocení
+        </h1>
+        <p class="text-md text-gray-500 mb-6">
+            Klikněte na kritéria, která se na projekt aplikují. Dynamická známka se zobrazí nahoře.
+        </p>
+
+        <!-- Dynamic Grade Display -->
+        <div class="flex flex-col md:flex-row items-center justify-between p-4 mb-8 rounded-lg shadow-inner bg-indigo-50 border border-indigo-200">
+            <div class="flex-1 text-center md:text-left mb-2 md:mb-0">
+                <h2 class="text-2xl font-semibold text-gray-700">Celková Odchylka Bodů: <span id="totalDeviationDisplay" class="font-bold text-indigo-600 transition-colors duration-300">0.0</span></h2>
+            </div>
+            <div class="flex-1 text-center">
+                <h2 class="text-3xl font-bold text-gray-700">Výsledná Známka:</h2>
+            </div>
+            <div class="flex-1 text-center md:text-right">
+                <p id="finalGradeDisplay" class="text-6xl font-black text-indigo-900 transition-colors duration-300">1</p>
+            </div>
+        </div>
+
+        <!-- Explanation and Copy Section -->
+        <div class="mt-6 p-4 rounded-lg bg-gray-100 border border-gray-300">
+            <div class="flex flex-col md:flex-row items-start md:items-center justify-between">
+                <h3 class="text-xl font-semibold text-gray-700 mb-3 md:mb-0">Zdůvodnění známky:</h3>
+                <button id="copyButton" class="px-4 py-2 bg-indigo-500 text-white font-medium rounded-lg shadow-md hover:bg-indigo-600 transition duration-300 text-sm">
+                    Kopírovat Zdůvodnění
+                </button>
+            </div>
+            <p id="explanationText" class="mt-3 text-gray-800 whitespace-pre-line text-sm md:text-base">
+                <!-- Text bude generován JavaScriptem -->
+            </p>
+        </div>
+
+        <!-- Criteria Container - Now for headings and sub-grids -->
+        <div id="criteriaContainer" class="space-y-6 mt-6">
+            <!-- Content will be rendered by JavaScript -->
+        </div>
+
+        <p class="mt-8 text-center text-gray-500">
+            <a href="index.html" class="text-indigo-600 hover:text-indigo-800 font-semibold transition duration-300">← Zpět do Hlavního Menu</a>
+        </p>
+    </div>
+
+    <script>
+        // Definice kritérií s hodnotami
+        const CRITERIA = [
+            // Soulad s návrhem projektu
+            { text: "Typ produktu částečně neodpovídá návrhu projektu", value: -1.0, category: "Soulad s Návrhem a Rozsahem" },
+            { text: "Typ produktu značně neodpovídá návrhu projektu", value: -2.0, category: "Soulad s Návrhem a Rozsahem" },
+            { text: "Rozsah produktu částečně neodpovídá návrhu projektu", value: -0.5, category: "Soulad s Návrhem a Rozsahem" },
+            { text: "Rozsah produktu značně neodpovídá návrhu projektu", value: -1.0, category: "Soulad s Návrhem a Rozsahem" },
+            { text: "Rozsah produktu značně přesahuje návrh projektu", value: +1.0, category: "Soulad s Návrhem a Rozsahem" },
+            { text: "Obsah produktu částečně neodpovídá návrhu projektu", value: -1.0, category: "Soulad s Návrhem a Rozsahem" },
+            { text: "Obsah produktu značně neodpovídá návrhu projektu", value: -2.0, category: "Soulad s Návrhem a Rozsahem" },
+            { text: "Produkt nějakým způsobem zásadně neodpovídá návrhu projektu", value: '5', category: "Soulad s Návrhem a Rozsahem" },
+            { text: "Produkt je subjektivně excelentní", value: +0.5, category: "Soulad s Návrhem a Rozsahem" },
+            { text: "Produkt je subjektivně nedostačující", value: -0.5, category: "Soulad s Návrhem a Rozsahem" },
+            { text: "Produkt je nevhodný pro školu", value: -1.0, category: "Soulad s Návrhem a Rozsahem" },
+            { text: "Produkt je zásadně nevhodný pro školní prostředí", value: '5', category: "Soulad s Návrhem a Rozsahem" },
+            
+            // Plnění Cílů (Případně)
+            { text: "Produkt částečně neprokazuje navrhované cíle", value: -0.5, category: "Plnění Navrhovaných Cílů (Případně)" },
+            { text: "Produkt značně neprokazuje navrhované cíle", value: -1.0, category: "Plnění Navrhovaných Cílů (Případně)" },
+            { text: "Produkt téměř vůbec neprokazuje navrhované cíle", value: -2.0, category: "Plnění Navrhovaných Cílů (Případně)" },
+            
+            // Jazyková kritéria
+            { text: "Produkt je částečně nečitelný či nesrozumitelný", value: -0.5, category: "Jazyková Kritéria" },
+            { text: "Produkt je velmi nečitelný či nesrozumitelný", value: -1.0, category: "Jazyková Kritéria" },
+            { text: "Produkt je nečitelný/nesrozumitelný tak, že jej nelze zhodnotit", value: '5', category: "Jazyková Kritéria" },
+            { text: "Produkt obsahuje zásadní jazykové chyby", value: -1.0, category: "Jazyková Kritéria" },
+            { text: "Jazyk produktu omezuje jeho pochopení", value: -1.0, category: "Jazyková Kritéria" },
+            { text: "Jazyk vytvořený žákem bez využití AI je velmi pokročilý", value: +0.5, category: "Jazyková Kritéria" },
+            
+            // Meta kritéria
+            { text: "Produkt neobsahuje dostatečně rozepsané AI zdroje", value: -1.0, category: "Meta Kritéria (Termín, AI, Formát)" },
+            { text: "Produkt odevzdán v nepoužitelném či nestandardním formátu", value: -0.5, category: "Meta Kritéria (Termín, AI, Formát)" },
+            { text: "Okolnosti způsobené žákem zásadně ovlivňují hodnocení projektu", value: -1.0, category: "Meta Kritéria (Termín, AI, Formát)" },
+            { text: "Produkt byl odevzdán do třech dnů po termínu", value: -0.5, category: "Meta Kritéria (Termín, AI, Formát)" },
+            { text: "Produkt byl odevzdán do týdne po termínu", value: -1.0, category: "Meta Kritéria (Termín, AI, Formát)" },
+            { text: "Produkt byl odevzdán více než týden po termínu", value: -2.0, category: "Meta Kritéria (Termín, AI, Formát)" },
+        ];
+
+        let selectedCriteria = new Set();
+        let totalDeviation = 0.0;
+        let isGradeFive = false;
+
+        const deviationDisplay = document.getElementById('totalDeviationDisplay');
+        const gradeDisplay = document.getElementById('finalGradeDisplay');
+        const explanationText = document.getElementById('explanationText');
+        const container = document.getElementById('criteriaContainer');
+        const copyButton = document.getElementById('copyButton');
+
+        /**
+         * Kalkuluje výslednou známku na základě kumulativní odchylky bodů.
+         */
+        function calculateFinalGrade() {
+            // 1. Zásadní chyba (=5) má přednost
+            if (isGradeFive) {
+                return '5';
+            }
+
+            // 2. Kladné body (zlepšení)
+            if (totalDeviation > 0) {
+                if (totalDeviation >= 0.5) {
+                    return '1+';
+                }
+                return '1';
+            }
+            
+            // 3. Záporné body (zhoršení) a 0 odchylka
+            let gradeValue = 1 - totalDeviation;
+
+            // Omezení maximální známky na 5
+            if (gradeValue >= 5.5) {
+                return '5'; 
+            }
+
+            // Zaokrouhlení na půlbod
+            const fractionalPart = gradeValue % 1;
+            const numericGrade = Math.floor(gradeValue);
+
+            if (fractionalPart > 0.499) {
+                return `${numericGrade}+`;
+            } else {
+                return `${numericGrade}`;
+            }
+        }
+        
+        /**
+         * Generuje textové zdůvodnění známky.
+         */
+        function generateExplanationText(finalGrade) {
+            // Zásadní chyba override
+            if (isGradeFive) {
+                 const overrideItem = CRITERIA[Array.from(selectedCriteria).find(index => CRITERIA[index].value === '5')];
+                 const overrideReason = overrideItem ? overrideItem.text : "Produkt je zásadně nevhodný/nečitelný, a proto nebylo možné jej relevantně zhodnotit.";
+                 return `Výsledná známka je ${finalGrade}, jelikož: ${overrideReason} (Známka 5 Override).`;
+            }
+
+            // Žádná kritéria
+            if (selectedCriteria.size === 0) {
+                return `Výsledná známka je ${finalGrade}, jelikož produkt splnil všechna základní kritéria.`;
+            }
+
+            let explanation = `Výsledná známka je ${finalGrade} na základě následujících zjištění:\n\n`;
+            
+            let positivePoints = [];
+            let negativePoints = [];
+
+            selectedCriteria.forEach(index => {
+                const item = CRITERIA[index];
+                const value = item.value;
+                if (value === '5') return; 
+
+                if (value > 0) {
+                    positivePoints.push(`- ${item.text} (+${value.toFixed(1)} bodu)`);
+                } else if (value < 0) {
+                    negativePoints.push(`- ${item.text} (${value.toFixed(1)} bodu)`);
+                }
+            });
+
+            if (positivePoints.length > 0) {
+                explanation += "Pozitivní Body (Zlepšení): \n" + positivePoints.join('\n') + "\n\n";
+            }
+            
+            if (negativePoints.length > 0) {
+                explanation += "Nedostatky (Zhoršení Známky): \n" + negativePoints.join('\n');
+            }
+            
+            if (positivePoints.length === 0 && negativePoints.length === 0) {
+                 return `Výsledná známka je ${finalGrade}, jelikož produkt splnil všechna základní kritéria.`;
+            }
+
+            return explanation.trim();
+        }
+
+        /**
+         * Aktualizuje celkovou odchylku a znovu vypočítá známku.
+         */
+        function updateGradeDisplay() {
+            totalDeviation = 0.0;
+            isGradeFive = false;
+            
+            selectedCriteria.forEach(index => {
+                const item = CRITERIA[index];
+                if (item.value === '5') {
+                    isGradeFive = true;
+                } else {
+                    totalDeviation += item.value;
+                }
+            });
+
+            // Přesné zobrazení odchylky
+            deviationDisplay.textContent = totalDeviation.toFixed(1);
+            
+            // Nastavení barvy odchylky
+            deviationDisplay.classList.remove('text-indigo-600', 'text-green-600', 'text-red-600');
+            if (totalDeviation < 0) {
+                deviationDisplay.classList.add('text-red-600');
+            } else if (totalDeviation > 0) {
+                deviationDisplay.classList.add('text-green-600');
+            } else {
+                deviationDisplay.classList.add('text-indigo-600');
+            }
+
+            // Výpočet a zobrazení známky
+            const finalGrade = calculateFinalGrade();
+            gradeDisplay.textContent = finalGrade;
+            
+            // --- NEW: Update Explanation ---
+            explanationText.textContent = generateExplanationText(finalGrade);
+            
+            // Zvýraznění známky 5
+            gradeDisplay.classList.remove('text-indigo-900', 'text-red-700');
+            if (finalGrade === '5') {
+                 gradeDisplay.classList.add('text-red-700');
+            } else {
+                 gradeDisplay.classList.add('text-indigo-900');
+            }
+        }
+
+        /**
+         * Inicializuje tlačítka, seskupuje je podle kategorií a přidává posluchače událostí.
+         */
+        function initCriteriaButtons() {
+            const groupedCriteria = CRITERIA.reduce((acc, item, index) => {
+                const category = item.category || 'Ostatní';
+                if (!acc[category]) {
+                    acc[category] = [];
+                }
+                acc[category].push({ ...item, originalIndex: index });
+                return acc;
+            }, {});
+
+            container.innerHTML = '';
+
+            for (const categoryName in groupedCriteria) {
+                const heading = document.createElement('h3');
+                heading.className = 'text-xl font-bold text-indigo-700 pt-4 border-b-2 border-indigo-200 pb-2 mb-4';
+                heading.textContent = categoryName;
+                container.appendChild(heading);
+
+                const gridDiv = document.createElement('div');
+                gridDiv.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4';
+                container.appendChild(gridDiv);
+
+                groupedCriteria[categoryName].forEach(item => {
+                    const button = document.createElement('button');
+                    
+                    let bgColor = 'bg-gray-200';
+                    let hoverColor = 'hover:bg-gray-300';
+                    let textColor = 'text-gray-700';
+                    let valueText = `(${item.value > 0 ? '+' : ''}${item.value})`;
+
+                    if (item.value === '5') {
+                        bgColor = 'bg-red-200';
+                        hoverColor = 'hover:bg-red-300';
+                        textColor = 'text-red-800 font-bold';
+                        valueText = '(Známka 5 Override)';
+                    } else if (item.value > 0) {
+                        bgColor = 'bg-green-200';
+                        hoverColor = 'hover:bg-green-300';
+                        textColor = 'text-green-800';
+                    } else if (item.value < 0) {
+                        bgColor = 'bg-yellow-100';
+                        hoverColor = 'hover:bg-yellow-200';
+                        textColor = 'text-yellow-800';
+                    }
+
+                    button.className = `criterion-btn w-full p-4 rounded-lg text-left shadow-md transition duration-200 ${bgColor} ${hoverColor} ${textColor} text-sm`;
+                    button.innerHTML = `
+                        <span class="font-semibold">${item.text}</span>
+                        <span class="mt-2 text-xs opacity-80">${valueText}</span>
+                    `;
+                    button.setAttribute('data-index', item.originalIndex);
+                    
+                    button.addEventListener('click', () => {
+                        const index = item.originalIndex;
+                        if (selectedCriteria.has(index)) {
+                            selectedCriteria.delete(index);
+                            button.classList.remove('selected');
+                        } else {
+                            selectedCriteria.add(index);
+                            button.classList.add('selected');
+                        }
+                        updateGradeDisplay();
+                    });
+
+                    gridDiv.appendChild(button);
+                });
+            }
+            
+            updateGradeDisplay();
+        }
+
+        // --- NEW: Copy to Clipboard Functionality ---
+        copyButton.addEventListener('click', function() {
+            const textToCopy = explanationText.textContent;
+            
+            const textarea = document.createElement('textarea');
+            textarea.value = textToCopy;
+            textarea.style.position = 'fixed'; 
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            
+            try {
+                document.execCommand('copy');
+                this.textContent = 'Zkopírováno!';
+                this.classList.replace('bg-indigo-500', 'bg-green-500');
+                this.classList.replace('hover:bg-indigo-600', 'hover:bg-green-600');
+                
+                setTimeout(() => {
+                    this.textContent = 'Kopírovat Zdůvodnění';
+                    this.classList.replace('bg-green-500', 'bg-indigo-500');
+                    this.classList.replace('hover:bg-green-600', 'hover:bg-indigo-600');
+                }, 2000);
+            } catch (err) {
+                console.error('Nepodařilo se zkopírovat text: ', err);
+                this.textContent = 'Chyba kopírování!';
+            }
+            document.body.removeChild(textarea);
+        });
+
+        // Spuštění inicializace po načtení stránky
+        window.onload = initCriteriaButtons;
+    </script>
+</body>
+</html>
